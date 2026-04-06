@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor CRUD - Flask</title>
+    <style>
+        :root { --primary: #2563eb; --danger: #dc2626; --success: #16a34a; --gray: #f3f4f6; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; background-color: #f8fafc; color: #1e293b; }
+        h1 { text-align: center; color: #0f172a; }
+        .container { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 2rem; max-width: 1200px; margin: 0 auto; }
+        .card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; border-bottom: 2px solid var(--gray); padding-bottom: 10px; font-size: 1.25rem; }
+        
+        form { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
+        input[type="text"] { padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; padding: 5px; background: #f1f5f9; border-radius: 6px; }
+        
+        .btn-group { display: flex; gap: 0.5rem; }
+        button { padding: 0.6rem 1rem; cursor: pointer; border-radius: 6px; border: none; font-weight: 600; transition: 0.2s; }
+        .btn-main { background-color: var(--primary); color: white; flex-grow: 1; }
+        .btn-cancel { background-color: #94a3b8; color: white; }
+        .btn-edit { background-color: #f59e0b; color: white; padding: 4px 8px; font-size: 0.8rem; }
+        .btn-delete { background-color: var(--danger); color: white; padding: 4px 8px; font-size: 0.8rem; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--gray); }
+        .status-done { color: var(--success); font-weight: bold; }
+        .status-pending { color: #64748b; }
+    </style>
+</head>
+<body>
+
+    <h1>Gestión de Tareas y Usuarios</h1>
+
+    <div class="container">
+        <div class="card">
+            <h2>Tareas</h2>
+            <form id="taskForm">
+                <input type="hidden" id="taskId">
+                <input type="text" id="taskContent" placeholder="Descripción de la tarea..." required>
+                
+                <div id="statusContainer" class="checkbox-group" style="display:none;">
+                    <input type="checkbox" id="taskDone">
+                    <label for="taskDone">¿Marcar como completada?</label>
+                </div>
+
+                <div class="btn-group">
+                    <button type="submit" id="taskSubmitBtn" class="btn-main">Agregar Tarea</button>
+                    <button type="button" id="taskCancelBtn" class="btn-cancel" style="display:none;" onclick="resetTaskForm()">Cancelar</button>
+                </div>
+            </form>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Contenido</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="taskTableBody"></tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Usuarios</h2>
+            <form id="userForm">
+                <input type="hidden" id="userId">
+                <input type="text" id="userName" placeholder="Nombre" required>
+                <input type="text" id="userLastname" placeholder="Apellido">
+                <input type="text" id="userCity" placeholder="Ciudad">
+                <input type="text" id="userCountry" placeholder="País">
+                <input type="text" id="userPostal" placeholder="code">
+                <div class="btn-group">
+                    <button type="submit" id="userSubmitBtn" class="btn-main">Crear Usuario</button>
+                    <button type="button" id="userCancelBtn" class="btn-cancel" style="display:none;" onclick="resetUserForm()">Cancelar</button>
+                </div>
+            </form>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Ciudad</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = ""; 
+
+        // --- TAREAS ---
+        async function fetchTasks() {
+            const res = await fetch(`${API_URL}/tasks`);
+            const data = await res.json();
+            const tbody = document.getElementById('taskTableBody');
+            tbody.innerHTML = '';
+            data.tasks.forEach((task, index) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${index}</td>
+                        <td style="${task.done ? 'text-decoration: line-through; color: gray;' : ''}">${task.content}</td>
+                        <td class="${task.done ? 'status-done' : 'status-pending'}">${task.done ? 'Completada' : 'Pendiente'}</td>
+                        <td>
+                            <button class="btn-edit" onclick="editTask(${index}, '${task.content}', ${task.done})">Editar</button>
+                            <button class="btn-delete" onclick="deleteTask(${index})">Eliminar</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        function editTask(id, content, done) {
+            document.getElementById('taskId').value = id;
+            document.getElementById('taskContent').value = content;
+            document.getElementById('taskDone').checked = done;
+            
+            document.getElementById('statusContainer').style.display = "flex";
+            document.getElementById('taskSubmitBtn').innerText = "Actualizar Tarea";
+            document.getElementById('taskCancelBtn').style.display = "inline-block";
+        }
+
+        function resetTaskForm() {
+            document.getElementById('taskId').value = '';
+            document.getElementById('taskForm').reset();
+            document.getElementById('statusContainer').style.display = "none";
+            document.getElementById('taskSubmitBtn').innerText = "Agregar Tarea";
+            document.getElementById('taskCancelBtn').style.display = "none";
+        }
+
+        document.getElementById('taskForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('taskId').value;
+            const content = document.getElementById('taskContent').value;
+            const done = document.getElementById('taskDone').checked;
+            
+            const isEdit = id !== "";
+            const url = isEdit ? `${API_URL}/tasks/${id}` : `${API_URL}/tasks`;
+            const method = isEdit ? 'PUT' : 'POST';
+
+            await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: content, done: done })
+            });
+
+            resetTaskForm();
+            fetchTasks();
+        });
+
+        async function deleteTask(id) {
+            if(confirm("¿Eliminar tarea?")) {
+                await fetch(`${API_URL}/tasks/${id}`, { method: 'DELETE' });
+                fetchTasks();
+            }
+        }
+
+        // --- USUARIOS (Lógica similar anterior) ---
+        async function fetchUsers() {
+            const res = await fetch(`${API_URL}/users`);
+            const data = await res.json();
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+            data.users.forEach((user, index) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${index}</td>
+                        <td>${user.name} ${user.lastname}</td>
+                        <td>${user.address.city}, ${user.address.country}, ${user.address.code}</td>
+                        <td>
+                            <button class="btn-edit" onclick="editUser(${index}, '${user.name}', '${user.lastname}', '${user.address.city}', '${user.address.country}', '${user.address.code}' )">Editar</button>
+                            <button class="btn-delete" onclick="deleteUser(${index})">Eliminar</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        function editUser(id, name, lastname, city, country, code) {
+            document.getElementById('userId').value = id;
+            document.getElementById('userName').value = name;
+            document.getElementById('userLastname').value = lastname;
+            document.getElementById('userCity').value = city;
+            document.getElementById('userCountry').value = country;
+            document.getElementById('userPostal').value = code;
+            document.getElementById('userSubmitBtn').innerText = "Actualizar Usuario";
+            document.getElementById('userCancelBtn').style.display = "inline-block";
+        }
+
+        function resetUserForm() {
+            document.getElementById('userId').value = '';
+            document.getElementById('userForm').reset();
+            document.getElementById('userSubmitBtn').innerText = "Crear Usuario";
+            document.getElementById('userCancelBtn').style.display = "none";
+        }
+
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('userId').value;
+            const isEdit = id !== "";
+            
+            const payload = { 
+                name: document.getElementById('userName').value, 
+                lastname: document.getElementById('userLastname').value, 
+                address: { city: document.getElementById('userCity').value, country: document.getElementById('userCountry').value, code: document.getElementById('userPostal').value} 
+            };
+
+            await fetch(isEdit ? `${API_URL}/users/${id}` : `${API_URL}/users`, {
+                method: isEdit ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            resetUserForm();
+            fetchUsers();
+        });
+
+        async function deleteUser(id) {
+            if(confirm("¿Eliminar usuario?")) {
+                await fetch(`${API_URL}/users/${id}`, { method: 'DELETE' });
+                fetchUsers();
+            }
+        }
+
+        fetchTasks();
+        fetchUsers();
+    </script>
+</body>
+</html>
